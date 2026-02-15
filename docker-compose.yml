@@ -1,0 +1,117 @@
+# ============================================
+# GitLab CE Docker Compose
+# ============================================
+# SEMUA KREDENSIAL DAN KONFIGURASI ADA DI FILE .env
+# Jangan hard-code password/secret di file ini!
+# ============================================
+
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:${GITLAB_IMAGE_TAG:-latest}
+    container_name: gitlab
+    restart: always
+    hostname: ${GITLAB_HOSTNAME}
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url '${GITLAB_PROTOCOL:-http}://${GITLAB_DOMAIN}'
+        gitlab_rails['gitlab_shell_ssh_port'] = ${GITLAB_SHELL_SSH_PORT:-2222}
+        gitlab_rails['time_zone'] = '${GITLAB_TIMEZONE:-Asia/Jakarta}'
+        gitlab_rails['backup_path'] = '/var/opt/gitlab/backups'
+        gitlab_rails['backup_archive_permissions'] = 0644
+        gitlab_rails['backup_keep_time'] = ${GITLAB_BACKUP_KEEP_TIME:-604800}
+        nginx['redirect_http_to_https'] = ${GITLAB_SSL_ENABLE:-false}
+        nginx['ssl_certificate'] = '${GITLAB_SSL_CERTIFICATE}'
+        nginx['ssl_certificate_key'] = '${GITLAB_SSL_CERTIFICATE_KEY}'
+        gitlab_rails['smtp_enable'] = ${GITLAB_SMTP_ENABLE:-false}
+        gitlab_rails['smtp_address'] = '${GITLAB_SMTP_HOST}'
+        gitlab_rails['smtp_port'] = ${GITLAB_SMTP_PORT:-587}
+        gitlab_rails['smtp_user_name'] = '${GITLAB_SMTP_USER}'
+        gitlab_rails['smtp_password'] = '${GITLAB_SMTP_PASSWORD}'
+        gitlab_rails['smtp_domain'] = '${GITLAB_SMTP_DOMAIN}'
+        gitlab_rails['smtp_authentication'] = '${GITLAB_SMTP_AUTHENTICATION:-login}'
+        gitlab_rails['smtp_enable_starttls_auto'] = ${GITLAB_SMTP_ENABLE_STARTTLS_AUTO:-true}
+        postgresql['shared_buffers'] = '${POSTGRESQL_SHARED_BUFFERS:-256MB}'
+        postgresql['max_worker_processes'] = ${POSTGRESQL_MAX_WORKER_PROCESSES:-4}
+        puma['worker_processes'] = ${PUMA_WORKER_PROCESSES:-2}
+        puma['worker_timeout'] = ${PUMA_WORKER_TIMEOUT:-60}
+    ports:
+      - "${GITLAB_HTTP_PORT:-8880}:80"
+      - "${GITLAB_HTTPS_PORT:-8843}:443"
+      - "${GITLAB_SSH_PORT:-8822}:22"
+    volumes:
+      - ./data/gitlab/config:/etc/gitlab:Z
+      - ./data/gitlab/logs:/var/log/gitlab:Z
+      - ./data/gitlab/data:/var/opt/gitlab:Z
+      - ./data/gitlab/backups:/var/opt/gitlab/backups:Z
+      - ./data/gitlab/ssl:/etc/gitlab/ssl:Z
+      - ./scripts/gitlab-entrypoint.sh:/custom-entrypoint.sh:ro
+    # Auto-fix socket permission after start
+    post_start:
+      - command: /bin/bash -c "sleep 60 && chmod 755 /var/opt/gitlab/gitlab-workhorse/ && chmod 755 /var/opt/gitlab/gitlab-workhorse/sockets/ && chmod 777 /var/opt/gitlab/gitlab-workhorse/sockets/socket && chmod 755 /var/opt/gitlab/gitlab-rails/ && chmod 755 /var/opt/gitlab/gitlab-rails/sockets/ && chmod 777 /var/opt/gitlab/gitlab-rails/sockets/gitlab.socket || true"
+        user: root
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-5}
+      start_period: ${HEALTH_CHECK_START_PERIOD:-40s}
+    logging:
+      driver: ${LOG_DRIVER:-json-file}
+      options:
+        max-size: ${LOG_MAX_SIZE:-50m}
+        max-file: ${LOG_MAX_FILE:-5}
+    networks:
+      - gitlab-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:${POSTGRES_IMAGE_TAG:-15-alpine}
+    container_name: gitlab-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gitlabhq_production}
+      POSTGRES_USER: ${POSTGRES_USER:-gitlab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data:Z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gitlab} -d ${POSTGRES_DB:-gitlabhq_production}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: ${LOG_DRIVER:-json-file}
+      options:
+        max-size: ${LOG_MAX_SIZE:-50m}
+        max-file: ${LOG_MAX_FILE:-5}
+    networks:
+      - gitlab-network
+
+  redis:
+    image: redis:${REDIS_IMAGE_TAG:-7-alpine}
+    container_name: gitlab-redis
+    restart: always
+    command: redis-server --maxmemory ${REDIS_MAX_MEMORY:-512mb} --maxmemory-policy ${REDIS_MAX_MEMORY_POLICY:-allkeys-lru}
+    volumes:
+      - ./data/redis:/data:Z
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: ${LOG_DRIVER:-json-file}
+      options:
+        max-size: ${LOG_MAX_SIZE:-50m}
+        max-file: ${LOG_MAX_FILE:-5}
+    networks:
+      - gitlab-network
+
+networks:
+  gitlab-network:
+    driver: bridge
