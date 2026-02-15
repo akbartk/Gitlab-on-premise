@@ -29,13 +29,15 @@ Deploy GitLab Community Edition dengan Docker Compose - mudah, cepat, dan terpus
 git clone <repo-url> gitlab-docker
 cd gitlab-docker
 
-# 2. Buat file konfigurasi
-cp .env.example .env
-nano .env  # Edit domain dan password
+# 2. Jalankan setup (akan membuat .env dari template)
+chmod +x setup.sh
+./setup.sh
 
-# 3. Jalankan setup otomatis
-chmod +x scripts/*.sh
-./scripts/setup.sh
+# 3. Edit .env dengan konfigurasi Anda
+nano .env  # Ganti domain dan password
+
+# 4. Jalankan setup lagi untuk deploy
+./setup.sh
 ```
 
 Selesai! Akses GitLab di `http://your-domain:8880`
@@ -44,6 +46,7 @@ Selesai! Akses GitLab di `http://your-domain:8880`
 
 ```
 .
+├── setup.sh                # One-Click Setup (START HERE!)
 ├── .env                    # Konfigurasi aktif (JANGAN commit!)
 ├── .env.example            # Template konfigurasi
 ├── docker-compose.yml      # Konfigurasi Docker Compose
@@ -54,8 +57,7 @@ Selesai! Akses GitLab di `http://your-domain:8880`
 │   ├── postgres/          # Database PostgreSQL
 │   └── redis/             # Cache Redis
 └── scripts/               # Script helper
-    ├── setup.sh           # Setup otomatis
-    ├── manage.sh          # Manajemen GitLab
+    ├── manage.sh          # Manajemen GitLab (start/stop/logs)
     ├── fix-socket-permission.sh
     └── gitlab-entrypoint.sh
 ```
