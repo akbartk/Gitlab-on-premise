@@ -5,8 +5,8 @@
 # Script ini memperbaiki permission socket GitLab
 # untuk mengatasi masalah nginx tidak bisa connect
 #
-# CATATAN: Perlu restart gitlab-workhorse setelah
-# mengubah permission agar socket baru dibuat
+# CATATAN: Menggunakan chmod 777 karena ACL dari host
+# filesystem tidak bisa diatasi dengan usermod + 770
 # ============================================
 
 GITLAB_CONTAINER="${GITLAB_CONTAINER:-gitlab}"
@@ -15,19 +15,17 @@ echo "Memperbaiki socket permission..."
 
 # Fix directory permissions
 docker exec $GITLAB_CONTAINER chmod 755 /var/opt/gitlab/gitlab-workhorse/ 2>/dev/null
+docker exec $GITLAB_CONTAINER chmod 755 /var/opt/gitlab/gitlab-workhorse/sockets/ 2>/dev/null
 docker exec $GITLAB_CONTAINER chmod 755 /var/opt/gitlab/gitlab-rails/ 2>/dev/null
+docker exec $GITLAB_CONTAINER chmod 755 /var/opt/gitlab/gitlab-rails/sockets/ 2>/dev/null
 
-# Fix socket directory permissions
-docker exec $GITLAB_CONTAINER chmod 777 /var/opt/gitlab/gitlab-workhorse/sockets/ 2>/dev/null
-docker exec $GITLAB_CONTAINER chmod 777 /var/opt/gitlab/gitlab-rails/sockets/ 2>/dev/null
-
-# Fix socket permissions
+# Fix socket permissions (777 karena ACL dari host filesystem)
 docker exec $GITLAB_CONTAINER chmod 777 /var/opt/gitlab/gitlab-workhorse/sockets/socket 2>/dev/null
 docker exec $GITLAB_CONTAINER chmod 777 /var/opt/gitlab/gitlab-rails/sockets/gitlab.socket 2>/dev/null
 
-echo "  socket permissions: 777"
+echo "  socket: chmod 777"
 
-# Restart gitlab-workhorse agar socket baru dibuat dengan permission benar
+# Restart gitlab-workhorse
 echo "Restarting gitlab-workhorse..."
 docker exec $GITLAB_CONTAINER gitlab-ctl restart gitlab-workhorse 2>/dev/null
 sleep 5

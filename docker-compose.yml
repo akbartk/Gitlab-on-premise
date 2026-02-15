@@ -46,8 +46,9 @@ services:
       - ./data/gitlab/ssl:/etc/gitlab/ssl:Z
       - ./scripts/gitlab-entrypoint.sh:/custom-entrypoint.sh:ro
     # Auto-fix socket permission after start
+    # Menggunakan chmod 777 karena ACL dari host filesystem tidak bisa diatasi dengan usermod + 770
     post_start:
-      - command: /bin/bash -c "sleep 60 && chmod 755 /var/opt/gitlab/gitlab-workhorse/ && chmod 755 /var/opt/gitlab/gitlab-workhorse/sockets/ && chmod 777 /var/opt/gitlab/gitlab-workhorse/sockets/socket && chmod 755 /var/opt/gitlab/gitlab-rails/ && chmod 755 /var/opt/gitlab/gitlab-rails/sockets/ && chmod 777 /var/opt/gitlab/gitlab-rails/sockets/gitlab.socket || true"
+      - command: /bin/bash -c "sleep 90 && chmod 755 /var/opt/gitlab/gitlab-workhorse/ && chmod 755 /var/opt/gitlab/gitlab-workhorse/sockets/ && chmod 755 /var/opt/gitlab/gitlab-rails/ && chmod 755 /var/opt/gitlab/gitlab-rails/sockets/ && chmod 777 /var/opt/gitlab/gitlab-workhorse/sockets/socket && chmod 777 /var/opt/gitlab/gitlab-rails/sockets/gitlab.socket && gitlab-ctl restart gitlab-workhorse && sleep 5 && chmod 777 /var/opt/gitlab/gitlab-workhorse/sockets/socket && chmod 777 /var/opt/gitlab/gitlab-rails/sockets/gitlab.socket || true"
         user: root
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost"]

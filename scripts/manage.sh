@@ -82,17 +82,16 @@ case "$COMMAND" in
 
         # Fix directory permissions
         docker exec gitlab chmod 755 /var/opt/gitlab/gitlab-workhorse/ 2>/dev/null || true
+        docker exec gitlab chmod 755 /var/opt/gitlab/gitlab-workhorse/sockets/ 2>/dev/null || true
         docker exec gitlab chmod 755 /var/opt/gitlab/gitlab-rails/ 2>/dev/null || true
+        docker exec gitlab chmod 755 /var/opt/gitlab/gitlab-rails/sockets/ 2>/dev/null || true
 
-        # Fix socket directory permissions
-        docker exec gitlab chmod 777 /var/opt/gitlab/gitlab-workhorse/sockets/ 2>/dev/null || true
-        docker exec gitlab chmod 777 /var/opt/gitlab/gitlab-rails/sockets/ 2>/dev/null || true
-
-        # Fix socket permissions
+        # Fix socket permissions (777)
         docker exec gitlab chmod 777 /var/opt/gitlab/gitlab-workhorse/sockets/socket 2>/dev/null || true
         docker exec gitlab chmod 777 /var/opt/gitlab/gitlab-rails/sockets/gitlab.socket 2>/dev/null || true
+        echo "  socket: chmod 777"
 
-        # Restart gitlab-workhorse agar socket baru dibuat
+        # Restart gitlab-workhorse
         log_info "Restarting gitlab-workhorse..."
         docker exec gitlab gitlab-ctl restart gitlab-workhorse 2>/dev/null || true
         sleep 5
