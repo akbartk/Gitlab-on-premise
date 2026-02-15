@@ -151,11 +151,26 @@ sleep 60
 
 # Fix socket permission
 log_info "Memperbaiki socket permission..."
+
+# Fix directory permissions
 docker exec gitlab chmod 755 /var/opt/gitlab/gitlab-workhorse/ 2>/dev/null || true
-docker exec gitlab chmod 755 /var/opt/gitlab/gitlab-workhorse/sockets/ 2>/dev/null || true
-docker exec gitlab chmod 777 /var/opt/gitlab/gitlab-workhorse/sockets/socket 2>/dev/null || true
 docker exec gitlab chmod 755 /var/opt/gitlab/gitlab-rails/ 2>/dev/null || true
-docker exec gitlab chmod 755 /var/opt/gitlab/gitlab-rails/sockets/ 2>/dev/null || true
+
+# Fix socket directory permissions
+docker exec gitlab chmod 777 /var/opt/gitlab/gitlab-workhorse/sockets/ 2>/dev/null || true
+docker exec gitlab chmod 777 /var/opt/gitlab/gitlab-rails/sockets/ 2>/dev/null || true
+
+# Fix socket permissions
+docker exec gitlab chmod 777 /var/opt/gitlab/gitlab-workhorse/sockets/socket 2>/dev/null || true
+docker exec gitlab chmod 777 /var/opt/gitlab/gitlab-rails/sockets/gitlab.socket 2>/dev/null || true
+
+# Restart gitlab-workhorse agar socket baru dibuat
+log_info "Restarting gitlab-workhorse..."
+docker exec gitlab gitlab-ctl restart gitlab-workhorse 2>/dev/null || true
+sleep 5
+
+# Fix socket permission lagi setelah restart
+docker exec gitlab chmod 777 /var/opt/gitlab/gitlab-workhorse/sockets/socket 2>/dev/null || true
 docker exec gitlab chmod 777 /var/opt/gitlab/gitlab-rails/sockets/gitlab.socket 2>/dev/null || true
 
 log_success "Socket permission diperbaiki!"
