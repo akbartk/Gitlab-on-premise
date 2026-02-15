@@ -22,25 +22,150 @@ Deploy GitLab Community Edition dengan Docker Compose - mudah, cepat, dan terpus
 - Docker 20.10+
 - Docker Compose 2.0+
 
-## Quick Start (5 Menit)
+---
+
+## setup.sh - One-Click Setup
+
+`setup.sh` adalah script utama untuk deploy GitLab. Script ini melakukan semuanya secara otomatis.
+
+### Kapan Menggunakan setup.sh?
+
+| Kondisi | Gunakan setup.sh? |
+|---------|-------------------|
+| Instalasi pertama kali | Ya |
+| Setelah edit .env | Ya |
+| Setelah server reboot | Tidak (gunakan `./scripts/manage.sh start`) |
+| Untuk start/stop harian | Tidak (gunakan `./scripts/manage.sh`) |
+| Untuk fix socket error | Tidak (gunakan `./scripts/manage.sh fix`) |
+
+### Apa yang Dilakukan setup.sh?
+
+```
+1. Cek .env (buat dari template jika belum ada)
+2. Validasi konfigurasi (password, domain)
+3. Cek Docker & Docker Compose
+4. Buat direktori data
+5. Validasi docker-compose.yml
+6. Tampilkan ringkasan konfigurasi
+7. Konfirmasi sebelum deploy
+8. Deploy dengan docker-compose up -d
+9. Tunggu container startup (60 detik)
+10. Fix socket permission + restart workhorse
+11. Test koneksi HTTP
+12. Tampilkan informasi akses
+```
+
+### Cara Penggunaan
+
+#### Langkah 1: Clone & Persiapan
 
 ```bash
-# 1. Clone repository
-git clone <repo-url> gitlab-docker
-cd gitlab-docker
+# Clone repository
+git clone git@github.com:akbartk/Gitlab-on-premise.git
+cd Gitlab-on-premise
 
-# 2. Jalankan setup (akan membuat .env dari template)
+# Berikan permission execute
 chmod +x setup.sh
-./setup.sh
+```
 
-# 3. Edit .env dengan konfigurasi Anda
-nano .env  # Ganti domain dan password
+#### Langkah 2: Generate .env
 
-# 4. Jalankan setup lagi untuk deploy
+```bash
+# Jalankan setup.sh pertama kali
 ./setup.sh
 ```
 
-Selesai! Akses GitLab di `http://your-domain:8880`
+Output:
+```
+============================================
+   GitLab CE Docker Compose Auto Setup
+============================================
+
+[WARNING] File .env tidak ditemukan!
+[INFO] Membuat .env dari .env.example...
+[WARNING] SILAKAN EDIT FILE .env SEBELUM MELANJUTKAN!
+[WARNING] Ganti semua nilai CHANGE_THIS_* dengan nilai yang sesuai.
+
+[INFO] Edit file dengan: nano .env
+[INFO] Setelah selesai, jalankan: ./setup.sh
+```
+
+#### Langkah 3: Edit .env
+
+```bash
+nano .env
+```
+
+**WAJIB diubah:**
+```env
+# Ganti dengan domain Anda
+GITLAB_HOSTNAME=gitlab.yourcompany.com
+GITLAB_DOMAIN=gitlab.yourcompany.com
+
+# Ganti dengan password yang kuat
+POSTGRES_PASSWORD=YourStrongPassword123!
+GITLAB_ROOT_PASSWORD=YourRootPassword123!
+```
+
+#### Langkah 4: Deploy
+
+```bash
+# Jalankan setup.sh lagi
+./setup.sh
+```
+
+Output:
+```
+============================================
+   GitLab CE Docker Compose Auto Setup
+============================================
+
+[INFO] Loading konfigurasi dari .env...
+[INFO] Memvalidasi konfigurasi...
+[SUCCESS] Validasi konfigurasi OK!
+[INFO] Mengecek Docker...
+[SUCCESS] Docker OK!
+[INFO] Membuat direktori data...
+[SUCCESS] Direktori data dibuat!
+[INFO] Memvalidasi docker-compose.yml...
+[SUCCESS] docker-compose.yml valid!
+
+============================================
+         RINGKASAN KONFIGURASI
+============================================
+Domain      : gitlab.yourcompany.com
+HTTP Port   : 8880
+HTTPS Port  : 8843
+SSH Port    : 8822
+Timezone    : Asia/Jakarta
+============================================
+
+Lanjutkan deploy? (y/n): y
+
+[INFO] Memulai deploy GitLab...
+[INFO] Menunggu container startup (60 detik)...
+[INFO] Memperbaiki socket permission...
+[INFO] Restarting gitlab-workhorse...
+[SUCCESS] Socket permission diperbaiki!
+[INFO] Mengecek status container...
+[SUCCESS] GitLab dapat diakses! (HTTP 302)
+
+============================================
+           GITLAB SIAP DIGUNAKAN!
+============================================
+
+Akses GitLab:
+  URL      : http://gitlab.yourcompany.com:8880
+  Username : root
+
+Password root ada di:
+  docker exec gitlab cat /etc/gitlab/initial_root_password
+
+============================================
+[SUCCESS] Setup selesai!
+```
+
+---
 
 ## Struktur Folder
 
@@ -62,6 +187,8 @@ Selesai! Akses GitLab di `http://your-domain:8880`
     └── gitlab-entrypoint.sh
 ```
 
+---
+
 ## Konfigurasi
 
 ### File .env
@@ -74,7 +201,7 @@ cp .env.example .env
 
 ### Variabel Penting
 
-| Variabel | Keterangan | Contoh |
+| Variabel | Keterangan | Contemplo |
 |----------|------------|--------|
 | `GITLAB_DOMAIN` | Domain GitLab | `gitlab.mycompany.com` |
 | `GITLAB_HTTP_PORT` | Port HTTP | `8880` |
@@ -84,16 +211,11 @@ cp .env.example .env
 
 ### Lihat semua variabel di `.env.example`
 
-## Penggunaan
+---
 
-### Setup Awal
+## Penggunaan Sehari-hari
 
-```bash
-# Setup otomatis (termasuk fix socket)
-./scripts/setup.sh
-```
-
-### Mengelola GitLab
+Gunakan `scripts/manage.sh` untuk operasi sehari-hari:
 
 ```bash
 # Lihat semua command
@@ -124,22 +246,7 @@ cp .env.example .env
 ./scripts/manage.sh shell
 ```
 
-### Manual (tanpa script)
-
-```bash
-# Start
-docker-compose up -d
-
-# Stop
-docker-compose down
-
-# Lihat log
-docker-compose logs -f gitlab
-
-# Fix socket permission
-docker exec gitlab chmod 777 /var/opt/gitlab/gitlab-workhorse/sockets/socket
-docker exec gitlab chmod 777 /var/opt/gitlab/gitlab-rails/sockets/gitlab.socket
-```
+---
 
 ## Akses GitLab
 
@@ -159,6 +266,8 @@ docker exec gitlab cat /etc/gitlab/initial_root_password
 # Reset password
 docker exec -it gitlab gitlab-rake "gitlab:password:reset[root]"
 ```
+
+---
 
 ## Troubleshooting
 
@@ -195,6 +304,8 @@ docker exec -it gitlab gitlab-rake "gitlab:password:reset[root]"
 ./scripts/manage.sh clean
 ```
 
+---
+
 ## Port yang Digunakan
 
 | Port | Service | Keterangan |
@@ -204,6 +315,8 @@ docker exec -it gitlab gitlab-rake "gitlab:password:reset[root]"
 | 8822 | SSH | Git operations |
 
 Ganti port di file `.env` jika ada konflik.
+
+---
 
 ## Backup & Restore
 
@@ -228,6 +341,8 @@ ls data/gitlab/backups/
 # Restore
 docker exec gitlab gitlab-backup restore BACKUP=timestamp_filename
 ```
+
+---
 
 ## SSL/HTTPS
 
@@ -254,12 +369,16 @@ GITLAB_SSL_CERTIFICATE_KEY=/etc/gitlab/ssl/privkey.pem
 ./scripts/manage.sh restart
 ```
 
+---
+
 ## Upgrade
 
 ```bash
 # Pull image terbaru dan restart
 ./scripts/manage.sh update
 ```
+
+---
 
 ## Keamanan
 
@@ -269,13 +388,7 @@ GITLAB_SSL_CERTIFICATE_KEY=/etc/gitlab/ssl/privkey.pem
 4. **Setup firewall** untuk membatasi akses port
 5. **Regular backups** untuk mencegah kehilangan data
 
-## Contributing
-
-1. Fork repository
-2. Buat branch fitur
-3. Commit perubahan
-4. Push ke branch
-5. Buat Pull Request
+---
 
 ## License
 
